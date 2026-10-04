@@ -21,7 +21,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      - uses: ivankaizer/preview-kit/actions/cleanup@main
+      - uses: ivankaizer/preview-kit/actions/cleanup@v1
         with:
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
           config: ${{ inputs.config }}

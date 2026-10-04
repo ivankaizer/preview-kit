@@ -1,6 +1,6 @@
 ---
 name: deploy-preview
-description: Deploy the current branch/PR to its preview environment at https://<branch>.<project>.deployment.lat, record a demo of it, check preview status, tear it down, or onboard a new repo to preview environments. Use when the user asks to deploy/redeploy/spin up a preview or staging env, record a demo/video of a PR, or set up previews for a repo.
+description: Deploy the current branch/PR to its preview environment at https://<branch>.<project>.<domain>, record a demo of it, check preview status, tear it down, or onboard a new repo to preview environments. Use when the user asks to deploy/redeploy/spin up a preview or staging env, record a demo/video of a PR, or set up previews for a repo.
 ---
 
 # Preview environments (preview-kit)
@@ -15,8 +15,8 @@ git -C ~/.preview-kit pull -q
 PREVIEW=~/.preview-kit/bin/preview
 ```
 
-Credentials are `DOKPLOY_URL` and `DOKPLOY_API_KEY` in `~/.env`, which the CLI loads itself. Never
-print, commit or paste them. If they're missing, stop and ask the user.
+The Dokploy URL and domain come from the repo's `.preview/config.json`. The secret `DOKPLOY_API_KEY` lives in `~/.env`, which the CLI loads itself.
+Never print, commit or paste the key. If it's missing, stop and ask the user.
 
 ## Deploy a preview
 
@@ -42,7 +42,7 @@ tour file probably needs updating for a UI change; fix it in the PR.
 ## Other commands
 
 - `$PREVIEW url` prints the URL.
-- `$PREVIEW status` lists the project's previews; use it to spot stale ones (the server has 4 GB of RAM).
+- `$PREVIEW status` lists the project's previews; use it to spot stale ones, since all previews share one server's RAM. `$PREVIEW prune` removes previews whose PR is closed.
 - `$PREVIEW destroy` removes the preview and its demos. CI does this when the PR closes.
 
 ## Onboard a new repo

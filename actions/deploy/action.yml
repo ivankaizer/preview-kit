@@ -2,7 +2,8 @@ name: Deploy preview
 description: Create or redeploy the Dokploy preview stack for the current pull request (`preview deploy`).
 inputs:
   dokploy-url:
-    default: https://dash.deployment.lat
+    description: Dokploy base URL; defaults to "dokploy" in the config
+    default: ''
   dokploy-api-key:
     required: true
   config:

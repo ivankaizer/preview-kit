@@ -17,7 +17,10 @@ short=${SHA:0:7}
 pub="$WORK/published"
 mkdir -p "$pub"
 git -C "$pub" init -q
-git -C "$pub" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+git -C "$pub" remote add origin "https://github.com/${REPO}.git"
+# Token goes in a header, not the URL, so it can't leak through git's error messages.
+git -C "$pub" config http.https://github.com/.extraheader \
+  "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
 if git -C "$pub" fetch -q --depth 1 origin "refs/heads/${branch}" 2>/dev/null; then
   git -C "$pub" checkout -q FETCH_HEAD
 fi
@@ -67,18 +70,21 @@ manifest="$out/manifest.json"
     count=$(jq '.changed | length' "$changes")
     echo "#### Changes since \`${prev:0:7}\`"
     echo
-    if ((count > 0)); then
+    if jq -e '.skipped' "$changes" >/dev/null; then
+      echo "Not compared: $(jq -r .skipped "$changes")."
+      echo
+    elif ((count > 0)); then
       echo "[▶ Changes video (MP4)](${blob}/changes.mp4)"
       echo
       jq -r --arg raw "$raw" '.changed[] |
-        "**\(.name)** · \((.ratio * 1000 | round) / 10)% changed\n\n![\(.name)](\($raw)/\(.image))\n"' "$changes"
+        "**\(.name)** · \((.ratio * 1000 | round) / 10 | tostring | if test("\\.") then . else . + ".0" end)% changed\n\n![\(.name)](\($raw)/\(.image))\n"' "$changes"
     else
       echo "No visual changes in any step."
       echo
     fi
     jq -r 'if (.added | length) > 0 then "New steps: \(.added | join(", "))\n" else empty end,
            if (.removed | length) > 0 then "Removed steps: \(.removed | join(", "))\n" else empty end' "$changes"
-    jq -r '"<sub>Unchanged: \(.unchanged | join(", ") | if . == "" then "none" else . end)</sub>"' "$changes"
+    jq -r 'select(.unchanged) | "<sub>Unchanged: \(.unchanged | join(", ") | if . == "" then "none" else . end)</sub>"' "$changes"
   else
     echo "<sub>First demo for this PR; the next commit will show what changed.</sub>"
   fi

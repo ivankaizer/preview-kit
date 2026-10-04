@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Scaffolds preview-kit files into the current repository. Never overwrites existing files.
 set -euo pipefail
+: "${PREVIEW_KIT_REPO:?run through bin/preview}" "${PREVIEW_KIT_REF:?run through bin/preview}"
+if [[ -f $HOME/.env ]]; then
+  # shellcheck disable=SC1091
+  set -a; source "$HOME/.env"; set +a
+fi
+domain=${PREVIEW_DOMAIN:-previews.example.com}
+dokploy=${DOKPLOY_URL:-https://dokploy.example.com}
 
 project=${1:-$(basename "$(git rev-parse --show-toplevel)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g')}
 
@@ -18,6 +25,8 @@ write() { # write <path>  (content on stdin)
 write .preview/config.json <<EOF
 {
   "project": "${project}",
+  "domain": "${domain}",
+  "dokploy": "${dokploy}",
   "compose": "docker-compose.preview.yml",
   "routes": [
     { "service": "app", "port": 3000, "path": "/" }
@@ -40,9 +49,9 @@ write .preview/tour.json <<'EOF'
 EOF
 
 write docker-compose.preview.yml <<'EOF'
-# Preview stack deployed per PR by preview-kit (https://<branch>.<project>.deployment.lat).
+# Preview stack deployed per PR by preview-kit (https://<branch>.<project>.<domain>).
 # Rules: build production images, publish no host ports (Traefik routes by .preview/config.json),
-# set mem_limit on every service (the server has 4 GB for all previews), seed demo data once.
+# set mem_limit on every service (all previews share one server), seed demo data once.
 services:
   app:
     build: .
@@ -50,7 +59,7 @@ services:
     mem_limit: 256m
 EOF
 
-write .github/workflows/preview-cleanup.yml <<'EOF'
+write .github/workflows/preview-cleanup.yml <<EOF
 name: Preview cleanup
 
 on:
@@ -60,26 +69,26 @@ on:
 jobs:
   cleanup:
     if: github.event.pull_request.head.repo.full_name == github.repository
-    uses: ivankaizer/preview-kit/.github/workflows/cleanup.yml@main
+    uses: ${PREVIEW_KIT_REPO}/.github/workflows/cleanup.yml@${PREVIEW_KIT_REF}
     permissions:
       contents: write
     secrets: inherit
 EOF
 
-cat <<'EOF'
+cat <<EOF
 
 Next:
-  1. Edit docker-compose.preview.yml, .preview/config.json (routes) and .preview/tour.json.
+  1. Edit docker-compose.preview.yml, .preview/config.json (domain, dokploy, routes) and .preview/tour.json.
   2. Add this job to the workflow that runs your tests on pull_request, after the test job:
 
   preview:
     needs: test   # your test job id
     if: github.event.pull_request.head.repo.full_name == github.repository
-    uses: ivankaizer/preview-kit/.github/workflows/preview.yml@main
+    uses: ${PREVIEW_KIT_REPO}/.github/workflows/preview.yml@${PREVIEW_KIT_REF}
     permissions:
       contents: write
       pull-requests: write
     secrets: inherit
 
-  3. Run `preview onboard` once, push, and open a PR.
+  3. Run 'preview onboard' once, push, and open a PR.
 EOF

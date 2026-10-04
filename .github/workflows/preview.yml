@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: deploy
-        uses: ivankaizer/preview-kit/actions/deploy@main
+        uses: ivankaizer/preview-kit/actions/deploy@v1
         with:
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
           config: ${{ inputs.config }}
@@ -38,7 +38,7 @@ jobs:
       - id: demo
         if: inputs.demo && hashFiles(inputs.tour) != ''
         continue-on-error: true
-        uses: ivankaizer/preview-kit/actions/demo@main
+        uses: ivankaizer/preview-kit/actions/demo@v1
         with:
           url: ${{ steps.deploy.outputs.url }}
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}

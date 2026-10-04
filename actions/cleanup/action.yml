@@ -2,7 +2,8 @@ name: Remove preview
 description: Remove the pull request's Dokploy preview stack and its demos branch (`preview destroy`).
 inputs:
   dokploy-url:
-    default: https://dash.deployment.lat
+    description: Dokploy base URL; defaults to "dokploy" in the config
+    default: ''
   dokploy-api-key:
     required: true
   config:

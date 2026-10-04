@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# One-time setup of a repository for preview-kit. Run from the repo root on a machine with
-# `gh` (repo admin) and DOKPLOY_URL/DOKPLOY_API_KEY in the environment (source ~/.env).
+# One-time setup of a repository for preview-kit. Run from the repo root via `preview onboard`,
+# with `gh` authenticated as a repo admin and DOKPLOY_API_KEY available (bin/preview loads ~/.env).
 # Idempotent: re-running only creates what is missing.
 #
 #   preview onboard
 set -euo pipefail
-: "${DOKPLOY_URL:?source ~/.env first}" "${DOKPLOY_API_KEY:?source ~/.env first}"
+: "${DOKPLOY_URL:?run through bin/preview}" "${DOKPLOY_API_KEY:?run through bin/preview}"
 
 config=.preview/config.json
 [[ -f $config ]] || { echo "Create $config first (see preview-kit README)" >&2; exit 1; }
@@ -54,11 +54,12 @@ if ! gh secret list -R "$repo" --json name --jq '.[].name' | grep -qx DOKPLOY_AP
 fi
 echo "• Secret DOKPLOY_API_KEY ready"
 
+domain=$(jq -r '.domain // "<domain>"' "$config")
 cat <<EOF
 
-Done. Remaining repo changes (see preview-kit README):
-  - $compose: production-like stack, no host ports, memory limits, seed data
+Done. Remaining repo changes (see the preview-kit README):
+  - $compose: production images, no host ports, mem_limit everywhere, one-shot seeding
   - .preview/tour.json: pages the demo visits (optional)
-  - a "preview" job after the tests and a cleanup workflow calling ivankaizer/preview-kit
-Previews will live at https://<branch>.${project}.deployment.lat
+  - the "preview" job printed by 'preview init', after your test job
+Previews will live at https://<branch>.${project}.${domain}
 EOF

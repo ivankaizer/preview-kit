@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck bin/preview lib/*.sh lib/demo/run.sh
+
+      - name: Node syntax
+        working-directory: lib/demo
+        run: |
+          npm ci --no-audit --no-fund
+          for f in *.mjs; do node --check "$f"; done
+
+      - name: Workflow and action YAML
+        run: |
+          for f in .github/workflows/*.yml actions/*/action.yml; do
+            python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))' "$f"
+          done
+
+      - name: preview init smoke test
+        run: |
+          repo=$(mktemp -d) && cd "$repo" && git init -q
+          "$GITHUB_WORKSPACE/bin/preview" init sample-app
+          jq -e '.project == "sample-app" and (.routes | length) == 1' .preview/config.json
+          jq -e '.sessions[0].steps[0].visit == "/"' .preview/tour.json
+          python3 -c 'import yaml; yaml.safe_load(open(".github/workflows/preview-cleanup.yml"))'
+          grep -q "preview-kit/.github/workflows/cleanup.yml@v1" .github/workflows/preview-cleanup.yml
+          "$GITHUB_WORKSPACE/bin/preview" init sample-app | grep -q "exists, skipped"
+          "$GITHUB_WORKSPACE/bin/preview" version
