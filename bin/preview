@@ -44,8 +44,10 @@ require_config() { [[ -f $config ]] || die "missing $config; run 'preview init' 
 
 load_env() {
   if [[ -z ${DOKPLOY_API_KEY:-} && -f $HOME/.env ]]; then
+    set -a
     # shellcheck disable=SC1091
-    set -a; source "$HOME/.env"; set +a
+    source "$HOME/.env"
+    set +a
   fi
   if [[ -z ${DOKPLOY_URL:-} && -f $config ]]; then DOKPLOY_URL=$(jq -r '.dokploy // empty' "$config"); fi
   [[ -n ${DOKPLOY_URL:-} ]] || die "set \"dokploy\" in $config or DOKPLOY_URL"

@@ -3,8 +3,10 @@
 set -euo pipefail
 : "${PREVIEW_KIT_REPO:?run through bin/preview}" "${PREVIEW_KIT_REF:?run through bin/preview}"
 if [[ -f $HOME/.env ]]; then
+  set -a
   # shellcheck disable=SC1091
-  set -a; source "$HOME/.env"; set +a
+  source "$HOME/.env"
+  set +a
 fi
 domain=${PREVIEW_DOMAIN:-previews.example.com}
 dokploy=${DOKPLOY_URL:-https://dokploy.example.com}

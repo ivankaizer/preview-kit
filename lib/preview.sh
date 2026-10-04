@@ -145,7 +145,7 @@ deploy() {
       error) die "deployment ${deployment} failed; logs: ${DOKPLOY_URL%/} → ${project} → previews → ${name}" ;;
     esac
   done
-  [[ $status == done ]] || die "timed out after ${DEPLOY_TIMEOUT}s waiting for the deployment"
+  [[ $status == "done" ]] || die "timed out after ${DEPLOY_TIMEOUT}s waiting for the deployment"
 
   # Traefik needs a moment to pick up routes and issue the certificate.
   for _ in $(seq 1 30); do
