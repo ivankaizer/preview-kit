@@ -1,0 +1,27 @@
+name: Deploy preview
+description: Create or redeploy the Dokploy preview stack for the current pull request (`preview deploy`).
+inputs:
+  dokploy-url:
+    default: https://dash.deployment.lat
+  dokploy-api-key:
+    required: true
+  config:
+    default: .preview/config.json
+outputs:
+  url:
+    description: Preview URL
+    value: ${{ steps.deploy.outputs.url }}
+runs:
+  using: composite
+  steps:
+    - id: deploy
+      shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.dokploy-url }}
+        DOKPLOY_API_KEY: ${{ inputs.dokploy-api-key }}
+        PREVIEW_CONFIG: ${{ inputs.config }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        BRANCH: ${{ github.event.pull_request.head.ref }}
+        SHA: ${{ github.event.pull_request.head.sha }}
+        REPO: ${{ github.repository }}
+      run: echo "url=$("$GITHUB_ACTION_PATH/../../bin/preview" deploy)" >> "$GITHUB_OUTPUT"

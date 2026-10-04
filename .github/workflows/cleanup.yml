@@ -1,0 +1,28 @@
+# Reusable: remove the PR's preview stack and demos branch. Call on `pull_request: types: [closed]`.
+# Callers need `permissions: { contents: write }` and `secrets: inherit`.
+name: Preview cleanup
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        default: .preview/config.json
+    secrets:
+      DOKPLOY_API_KEY:
+        required: true
+
+jobs:
+  cleanup:
+    name: Remove preview
+    runs-on: ubuntu-latest
+    concurrency:
+      group: preview-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ivankaizer/preview-kit/actions/cleanup@main
+        with:
+          dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          config: ${{ inputs.config }}
+          github-token: ${{ github.token }}

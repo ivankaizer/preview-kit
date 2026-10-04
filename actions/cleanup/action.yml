@@ -1,0 +1,25 @@
+name: Remove preview
+description: Remove the pull request's Dokploy preview stack and its demos branch (`preview destroy`).
+inputs:
+  dokploy-url:
+    default: https://dash.deployment.lat
+  dokploy-api-key:
+    required: true
+  config:
+    default: .preview/config.json
+  github-token:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.dokploy-url }}
+        DOKPLOY_API_KEY: ${{ inputs.dokploy-api-key }}
+        PREVIEW_CONFIG: ${{ inputs.config }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        BRANCH: ${{ github.event.pull_request.head.ref }}
+        SHA: ${{ github.event.pull_request.head.sha }}
+        REPO: ${{ github.repository }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: '"$GITHUB_ACTION_PATH/../../bin/preview" destroy'

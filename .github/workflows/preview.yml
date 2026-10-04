@@ -1,0 +1,75 @@
+# Reusable: deploy the PR's preview, record the demo and post one sticky PR comment.
+# Callers need `permissions: { contents: write, pull-requests: write }` and `secrets: inherit`.
+name: Preview
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        default: .preview/config.json
+      tour:
+        type: string
+        default: .preview/tour.json
+      demo:
+        description: Record a demo when the tour file exists
+        type: boolean
+        default: true
+    secrets:
+      DOKPLOY_API_KEY:
+        required: true
+
+jobs:
+  preview:
+    name: Deploy preview
+    runs-on: ubuntu-latest
+    concurrency:
+      group: preview-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: deploy
+        uses: ivankaizer/preview-kit/actions/deploy@main
+        with:
+          dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          config: ${{ inputs.config }}
+
+      - id: demo
+        if: inputs.demo && hashFiles(inputs.tour) != ''
+        continue-on-error: true
+        uses: ivankaizer/preview-kit/actions/demo@main
+        with:
+          url: ${{ steps.deploy.outputs.url }}
+          dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          tour: ${{ inputs.tour }}
+          github-token: ${{ github.token }}
+
+      - name: Comment on PR
+        if: always() && steps.deploy.outputs.url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          URL: ${{ steps.deploy.outputs.url }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          DEMO_MD: ${{ steps.demo.outputs.markdown }}
+          DEMO_OUTCOME: ${{ steps.demo.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo '<!-- preview-kit -->'
+            echo "🚀 **Preview:** $URL"
+            echo
+            echo "<sub>Deployed \`${SHA:0:7}\` · [run]($RUN_URL)</sub>"
+            echo
+            if [ -n "$DEMO_MD" ] && [ -f "$DEMO_MD" ]; then cat "$DEMO_MD"
+            elif [ "$DEMO_OUTCOME" = failure ]; then echo "> ⚠️ Demo recording failed; see the [run]($RUN_URL)."
+            fi
+          } > body.md
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '[.[] | select(.body | startswith("<!-- preview-kit -->") or startswith("<!-- preview-url -->"))][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@body.md >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file body.md
+          fi

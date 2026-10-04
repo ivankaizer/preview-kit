@@ -1,0 +1,15 @@
+{
+  "name": "playdex-preview-demo",
+  "private": true,
+  "type": "module",
+  "description": "Records PR preview walkthroughs and before/after change videos (see docs/preview-environments.md).",
+  "scripts": {
+    "tour": "node tour.mjs",
+    "compare": "node compare.mjs"
+  },
+  "devDependencies": {
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.63.0",
+    "pngjs": "^7.0.0"
+  }
+}

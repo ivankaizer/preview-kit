@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# preview — PR preview environments on the staging Dokploy server.
+# Run inside a repository; see README.md. Credentials come from the environment
+# (CI secrets) or ~/.env (DOKPLOY_URL, DOKPLOY_API_KEY).
+set -euo pipefail
+kit=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
+
+usage() {
+  cat <<'EOF'
+usage: preview <command>
+
+  init       scaffold .preview/ and the GitHub workflows into this repo
+  onboard    one-time server setup for this repo (Dokploy project, deploy key, CI secret)
+  deploy     deploy this branch's PR; prints the preview URL
+  demo       record the tour on the preview and compare with the previous commit
+  url        print this branch's preview URL
+  status     list this project's running previews
+  destroy    remove this branch's preview and its demos
+
+PR_NUMBER/BRANCH default to the PR of the checked-out branch (via gh).
+EOF
+}
+
+load_env() {
+  if [[ -z ${DOKPLOY_API_KEY:-} && -f $HOME/.env ]]; then
+    # shellcheck disable=SC1091
+    set -a; source "$HOME/.env"; set +a
+  fi
+  : "${DOKPLOY_URL:=https://dash.deployment.lat}"
+  : "${DOKPLOY_API_KEY:?missing DOKPLOY_API_KEY (CI secret, or ~/.env locally)}"
+  export DOKPLOY_URL DOKPLOY_API_KEY
+}
+
+pr_context() {
+  : "${REPO:=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}}"
+  if [[ -z ${PR_NUMBER:-} || -z ${BRANCH:-} || -z ${SHA:-} ]]; then
+    read -r PR_NUMBER BRANCH SHA <<<"$(gh pr view --json number,headRefName,headRefOid \
+      --jq '"\(.number) \(.headRefName) \(.headRefOid)"')"
+  fi
+  export REPO PR_NUMBER BRANCH SHA
+}
+
+cmd=${1:-help}
+shift || true
+case $cmd in
+  init) exec "$kit/lib/init.sh" "$@" ;;
+  onboard) load_env; exec "$kit/lib/onboard.sh" "$@" ;;
+  deploy | destroy | url)
+    load_env; pr_context
+    "$kit/lib/preview.sh" "$cmd"
+    if [[ $cmd == destroy ]]; then
+      gh api -X DELETE "repos/$REPO/git/refs/heads/demos/pr-$PR_NUMBER" >/dev/null 2>&1 \
+        && echo "Deleted demos/pr-$PR_NUMBER" >&2 || true
+    fi
+    ;;
+  demo)
+    load_env; pr_context
+    [[ -d $kit/lib/demo/node_modules ]] || (cd "$kit/lib/demo" && npm ci --no-audit --no-fund --silent)
+    : "${PREVIEW_URL:=$("$kit/lib/preview.sh" url)}"
+    : "${GH_TOKEN:=$(gh auth token)}"
+    export PREVIEW_URL GH_TOKEN
+    "$kit/lib/demo/run.sh"
+    ;;
+  status)
+    load_env
+    project=$(jq -r .project "${PREVIEW_CONFIG:-.preview/config.json}")
+    api() { curl -fsS -H "x-api-key: $DOKPLOY_API_KEY" "$DOKPLOY_URL/api/$1"; }
+    env_id=$(api project.all | jq -r --arg p "$project" \
+      '[.[] | select(.name == $p) | .environments[] | select(.name == "previews") | .environmentId][0] // empty')
+    [[ -n $env_id ]] || { echo "Project $project is not onboarded" >&2; exit 1; }
+    { echo -e "PREVIEW\tSTATUS\tCREATED\tPR"
+      api "environment.one?environmentId=$env_id" | jq -r \
+        '.compose[]? | "\(.name)\t\(.composeStatus)\t\(.createdAt[0:16])\t\(.description // "")"'; } | column -t -s $'\t'
+    ;;
+  help | -h | --help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac
