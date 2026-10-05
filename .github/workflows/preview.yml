@@ -1,4 +1,4 @@
-# Reusable: deploy the PR's preview, record the demo and post one sticky PR comment.
+# Reusable: deploy the PR's preview, record the demo and comment on the PR (one sticky comment, or one per deploy).
 # Callers need `permissions: { contents: write, pull-requests: write }` and `secrets: inherit`.
 name: Preview
 
@@ -15,6 +15,14 @@ on:
         description: Record a demo when the tour file exists
         type: boolean
         default: true
+      comment:
+        description: "`sticky` edits one PR comment on every deploy; `new` posts a fresh comment per deploy"
+        type: string
+        default: sticky
+      hide-previous:
+        description: "With `comment: new`, collapse earlier preview comments as outdated"
+        type: boolean
+        default: false
     secrets:
       DOKPLOY_API_KEY:
         required: true
@@ -55,7 +63,10 @@ jobs:
           DEMO_MD: ${{ steps.demo.outputs.markdown }}
           DEMO_OUTCOME: ${{ steps.demo.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMENT_MODE: ${{ inputs.comment }}
+          HIDE_PREVIOUS: ${{ inputs.hide-previous }}
         run: |
+          case "$COMMENT_MODE" in sticky|new) ;; *) echo "::error::comment must be sticky or new, got '$COMMENT_MODE'"; exit 1 ;; esac
           {
             echo '<!-- preview-kit -->'
             echo "🚀 **Preview:** $URL"
@@ -66,10 +77,19 @@ jobs:
             elif [ "$DEMO_OUTCOME" = failure ]; then echo "> ⚠️ Demo recording failed; see the [run]($RUN_URL)."
             fi
           } > body.md
-          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
-            --jq '[.[] | select(.body | startswith("<!-- preview-kit -->") or startswith("<!-- preview-url -->"))][0].id // empty')
-          if [ -n "$id" ]; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@body.md >/dev/null
-          else
+          # Earlier preview comments, oldest first ("preview-url" is the pre-v1 marker).
+          previous=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- preview-kit -->") or startswith("<!-- preview-url -->")) | "\(.id) \(.node_id)"')
+          if [ "$COMMENT_MODE" = new ] || [ -z "$previous" ]; then
             gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file body.md
+            if [ "$COMMENT_MODE" = new ] && [ "$HIDE_PREVIOUS" = true ] && [ -n "$previous" ]; then
+              while read -r _ node_id; do
+                gh api graphql -f id="$node_id" \
+                  -f query='mutation($id: ID!) { minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) { clientMutationId } }' \
+                  >/dev/null || echo "::warning::Could not hide previous preview comment $node_id"
+              done <<< "$previous"
+            fi
+          else
+            id=$(head -n1 <<< "$previous" | cut -d' ' -f1)
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@body.md >/dev/null
           fi

@@ -12,7 +12,8 @@ For every pull request in a repo that uses preview-kit:
 4. From the second commit on, each step is compared with the previous commit, and a **changes**
    video shows only the steps that look different: before and after side by side, with the changed
    pixels highlighted.
-5. One PR comment, updated on every push, carries the URL, the tour and the changes.
+5. A PR comment carries the URL, the tour and the changes. By default one comment is updated on
+   every push; set `comment: new` to post one per push instead.
 6. Merging or closing the PR removes the preview and its demos.
 
 It is a set of bash scripts, a small Node/Playwright recorder and GitHub Actions workflows. There is
@@ -74,6 +75,16 @@ Then add the job that `init` prints to the workflow that runs your tests, after 
       pull-requests: write   # posts the PR comment
     secrets: inherit
 ```
+
+Optional inputs, under `with:` in that job:
+
+| Input | Default | Meaning |
+|---|---|---|
+| `config` | `.preview/config.json` | Preview config path |
+| `tour` | `.preview/tour.json` | Demo tour path |
+| `demo` | `true` | Record a demo when the tour file exists |
+| `comment` | `sticky` | `sticky` edits one PR comment on every push; `new` posts a fresh comment per push, so earlier demos stay in the thread (their files stay on the demos branch until the PR closes) |
+| `hide-previous` | `false` | With `comment: new`, collapse earlier preview comments as outdated |
 
 `init` also creates `.github/workflows/preview-cleanup.yml`, which removes the preview when the PR
 closes. Push and open a PR.

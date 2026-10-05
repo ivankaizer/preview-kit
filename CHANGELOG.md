@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.0 — 2026-10-05
+
+- `preview.yml` input `comment`: `sticky` (default, unchanged behavior) or `new`, which posts a
+  fresh PR comment on every deploy instead of editing the previous one.
+- `preview.yml` input `hide-previous` (default `false`): with `comment: new`, collapses earlier
+  preview comments as outdated.
+
 ## v1.0.0 — 2026-10-04
 
 First release.
