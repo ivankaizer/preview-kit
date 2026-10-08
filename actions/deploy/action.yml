@@ -25,4 +25,7 @@ runs:
         BRANCH: ${{ github.event.pull_request.head.ref }}
         SHA: ${{ github.event.pull_request.head.sha }}
         REPO: ${{ github.repository }}
-      run: echo "url=$("$GITHUB_ACTION_PATH/../../bin/preview" deploy)" >> "$GITHUB_OUTPUT"
+      # Assign first: inside echo's argument a failing deploy would be masked by echo's exit status.
+      run: |
+        url=$("$GITHUB_ACTION_PATH/../../bin/preview" deploy)
+        echo "url=$url" >> "$GITHUB_OUTPUT"

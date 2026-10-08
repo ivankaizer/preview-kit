@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.1 — 2026-10-08
+
+- **Fix:** the `deploy` and `staging` actions reported success when the deploy failed. The URL
+  was captured inside `echo`'s argument, so the step's exit status was `echo`'s. Failed deploys
+  (build error, Dokploy `error`, failed healthcheck) now fail the job.
+
 ## v1.2.0 — 2026-10-08
 
 - **Staging:** a `staging` section in `.preview/config.json` adds a long-lived stack for the
