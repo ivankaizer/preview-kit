@@ -13,6 +13,8 @@ usage: preview <command>
   init [project]   scaffold .preview/, docker-compose.preview.yml and the cleanup workflow
   onboard          one-time setup for this repo: Dokploy project, deploy key, CI secret
   deploy           deploy this branch's PR and print the preview URL
+  staging deploy   deploy the staging branch to https://<project>.<domain> (also: url, destroy)
+  db setup         create the server's shared Postgres, used by staging stacks (also: status)
   demo             record the tour on the preview and compare with the previous commit
   url              print this branch's preview URL
   status           list this project's previews
@@ -103,6 +105,20 @@ case $cmd in
     GH_TOKEN="${GH_TOKEN:-$(gh auth token)}"
     export PREVIEW_URL GH_TOKEN SHA
     "$kit/lib/demo/run.sh"
+    ;;
+  staging)
+    require_config; load_env
+    REPO="${REPO:-${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}}"
+    SHA="${SHA:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}}"
+    export REPO SHA
+    exec "$kit/lib/staging.sh" "${1:-deploy}"
+    ;;
+  db)
+    load_env
+    case ${1:-} in
+      setup | status) exec "$kit/lib/shared-db.sh" "$1" ;;
+      *) die "usage: preview db setup|status" ;;
+    esac
     ;;
   status)
     require_config; load_env

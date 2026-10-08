@@ -1,0 +1,26 @@
+name: Deploy staging
+description: Build and deploy the staging branch to https://<project>.<domain> (`preview staging deploy`).
+inputs:
+  dokploy-url:
+    description: Dokploy base URL; defaults to "dokploy" in the config
+    default: ''
+  dokploy-api-key:
+    required: true
+  config:
+    default: .preview/config.json
+outputs:
+  url:
+    description: Staging URL
+    value: ${{ steps.deploy.outputs.url }}
+runs:
+  using: composite
+  steps:
+    - id: deploy
+      shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.dokploy-url }}
+        DOKPLOY_API_KEY: ${{ inputs.dokploy-api-key }}
+        PREVIEW_CONFIG: ${{ inputs.config }}
+        SHA: ${{ github.sha }}
+        REPO: ${{ github.repository }}
+      run: echo "url=$("$GITHUB_ACTION_PATH/../../bin/preview" staging deploy)" >> "$GITHUB_OUTPUT"

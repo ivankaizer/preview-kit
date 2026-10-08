@@ -1,6 +1,6 @@
 ---
 name: deploy-preview
-description: Deploy the current branch/PR to its preview environment at https://<branch>.<project>.<domain>, record a demo of it, check preview status, tear it down, or onboard a new repo to preview environments. Use when the user asks to deploy/redeploy/spin up a preview or staging env, record a demo/video of a PR, or set up previews for a repo.
+description: Deploy the current branch/PR to its preview environment at https://<branch>.<project>.<domain>, deploy the staging branch to https://<project>.<domain>, set up the server's shared Postgres, record a demo of it, check preview status, tear it down, or onboard a new repo to preview environments. Use when the user asks to deploy/redeploy/spin up a preview or staging env, record a demo/video of a PR, or set up previews for a repo.
 ---
 
 # Preview environments (preview-kit)
@@ -31,6 +31,21 @@ Never print, commit or paste the key. If it's missing, stop and ask the user.
 
 CI already does this after tests pass on every PR push. A manual deploy is for skipping the wait or
 retrying a failure.
+
+## Staging
+
+Repos whose `.preview/config.json` has a `staging` section also get a long-lived staging stack: the
+staging branch (default `dev`) at `https://<project>.<domain>`. CI deploys it on every push to
+that branch whose tests pass. For a manual deploy, run `$PREVIEW staging deploy` in the background.
+It deploys the branch from GitHub, so first check that the branch is pushed. `$PREVIEW staging url`
+prints the URL.
+
+With `"database": "shared"`, staging uses its own database on the server's shared Postgres. The
+server needs `$PREVIEW db setup` once; `$PREVIEW db status` shows it. Only run
+`$PREVIEW staging destroy` when the user asks: staging is long-lived. It keeps the database.
+
+To add staging to a repo, follow the "Staging" section of `~/.preview-kit/README.md`, then run
+`$PREVIEW onboard` again to create the `staging` environment.
 
 ## Record a demo
 
