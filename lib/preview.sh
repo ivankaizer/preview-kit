@@ -116,6 +116,11 @@ healthy() {
 
 deploy() {
   local env_id id host previous deployment="" status=""
+  # A PR from the staging branch (dev → main) is already live on staging; don't duplicate it.
+  if jq -e --arg b "$BRANCH" '.staging and (.staging.branch // "dev") == $b' "$config" >/dev/null; then
+    echo "Skipping preview: ${BRANCH} is the staging branch, deployed at https://$(jq -r --arg d "${project}.${domain}" '.staging.host // $d' "$config")" >&2
+    return
+  fi
   env_id=$(environment_id)
   [[ -n $env_id ]] || die "no Dokploy project '${project}' with a 'previews' environment; run 'preview onboard'"
   id=$(find_compose "$env_id")

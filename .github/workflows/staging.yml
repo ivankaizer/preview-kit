@@ -1,0 +1,42 @@
+# Reusable: deploy the staging branch to https://<project>.<domain>. Call it from a workflow that
+# runs on `push` to the staging branch, after the tests. Callers need `secrets: inherit`.
+name: Staging
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        default: .preview/config.json
+    secrets:
+      DOKPLOY_API_KEY:
+        required: true
+    outputs:
+      url:
+        description: Staging URL
+        value: ${{ jobs.staging.outputs.url }}
+
+jobs:
+  staging:
+    name: Deploy staging
+    runs-on: ubuntu-latest
+    # One deploy at a time; a newer push waits rather than cancelling a half-finished migration.
+    concurrency:
+      group: staging-${{ github.repository }}
+      cancel-in-progress: false
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: deploy
+        uses: ivankaizer/preview-kit/actions/staging@v1
+        with:
+          dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          config: ${{ inputs.config }}
+
+      - name: Summary
+        run: echo "🚀 **Staging:** ${{ steps.deploy.outputs.url }} (\`${GITHUB_SHA:0:7}\`)" >> "$GITHUB_STEP_SUMMARY"

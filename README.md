@@ -162,6 +162,86 @@ The tour is optional; without it, only the preview is deployed.
   - A step counts as changed when at least 0.2% of its pixels differ (`MIN_CHANGED`).
   - Runs are compared only when they were recorded on the same platform and browser build.
 
+## Staging
+
+Optionally, a project also gets a long-lived **staging** stack: the staging branch (default `dev`),
+deployed on every push that passes the tests, at `https://<project>.<your-domain>`. A typical flow
+is feature branch (preview) → `dev` (staging) → `main` (production). Pull requests from the
+staging branch itself get no preview, since that code is already on staging.
+
+Add a `staging` section to `.preview/config.json`:
+
+```json
+"staging": {
+  "branch": "dev",
+  "compose": "docker-compose.staging.yml",
+  "database": "shared"
+}
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `branch` | `dev` | Branch deployed to staging |
+| `compose` | `docker-compose.staging.yml` | Compose file for the staging stack. Same rules as previews |
+| `host` | `<project>.<domain>` | Staging host |
+| `database` | none | `shared`: give staging its own database on the server's shared Postgres (below) |
+| `env` | none | Lines written to the stack's `.env` |
+
+The stack reuses the config's `routes` and `healthcheck`. Run `preview onboard` again to create the
+project's `staging` environment, then add a job to a workflow that runs on `push` to the branch:
+
+```yaml
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  # ... your test job ...
+  staging:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    uses: ivankaizer/preview-kit/.github/workflows/staging.yml@v1
+    secrets: inherit
+```
+
+Deploys queue rather than cancel each other, and the job's GitHub environment `staging` links to
+the URL. Unlike previews, staging's volumes and data survive deploys.
+
+### Shared Postgres
+
+Instead of a database container per stack, staging stacks can share one Postgres server per
+Dokploy host. Create it once per server:
+
+```sh
+preview db setup     # Dokploy project "shared", database app "shared-postgres", postgres:18
+preview db status
+```
+
+With `"database": "shared"`, the first staging deploy creates a login role and database
+`<project>_staging` (dashes become underscores) with a random password, and writes
+`DATABASE_URL` plus `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and `PGPASSWORD` to the stack's
+`.env`. Use them in the compose file, and put the services that need the database on Dokploy's
+network as well as their own:
+
+```yaml
+services:
+  api:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set by preview-kit}
+    networks: [default, dokploy-network]
+
+networks:
+  dokploy-network:
+    external: true
+```
+
+- The role is created through a one-off Dokploy server job that runs `psql` inside the Postgres
+  container and is deleted afterwards. The superuser password stays in Dokploy.
+- Each role owns only its own database, and other roles can't connect to it.
+- `preview staging destroy` removes the stack but keeps the database.
+- Back up the shared server from its Dokploy page (Backups), since it holds every project's
+  staging data.
+
 ## CLI reference
 
 Run it inside a repository. `PR_NUMBER` and `BRANCH` default to the PR of the checked-out branch.
@@ -176,6 +256,9 @@ Run it inside a repository. `PR_NUMBER` and `BRANCH` default to the PR of the ch
 | `preview status` | Lists the project's previews |
 | `preview prune` | Removes previews whose PR is no longer open (e.g. a cleanup job failed) |
 | `preview destroy` | Removes this branch's preview and its demos |
+| `preview staging deploy` | Deploys the staging branch and prints the staging URL (CI does this on push) |
+| `preview staging url` / `destroy` | Prints the staging URL / removes the staging stack (the database is kept) |
+| `preview db setup` / `status` | Creates the server's shared Postgres (once per server) / shows it |
 
 ## How it works
 
@@ -210,11 +293,14 @@ releases (`v1.x.y`); breaking changes get `v2`. See [CHANGELOG.md](CHANGELOG.md)
 ```
 bin/preview                      CLI entry point
 lib/preview.sh                   Dokploy API: deploy / destroy / url
+lib/staging.sh                   Dokploy API: the staging stack
+lib/shared-db.sh                 shared Postgres: setup, per-project databases
 lib/init.sh, lib/onboard.sh      repo setup
 lib/demo/                        tour recorder, comparison, publishing (Node + Playwright + ffmpeg)
-actions/{deploy,demo,cleanup}/   composite actions wrapping the CLI
+actions/{deploy,demo,cleanup,staging}/  composite actions wrapping the CLI
 .github/workflows/preview.yml    reusable: deploy → demo → PR comment
 .github/workflows/cleanup.yml    reusable: remove the preview on PR close
+.github/workflows/staging.yml    reusable: deploy the staging branch
 skills/deploy-preview/           agent skill (Claude Code); link it into ~/.claude/skills
 ```
 

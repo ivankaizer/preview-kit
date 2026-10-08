@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.0 — 2026-10-08
+
+- **Staging:** a `staging` section in `.preview/config.json` adds a long-lived stack for the
+  staging branch (default `dev`) at `https://<project>.<domain>`.
+  - `preview staging deploy|url|destroy`, the composite action `actions/staging` and the
+    reusable workflow `staging.yml` (deploys queue instead of cancelling).
+  - `preview onboard` creates the project's `staging` environment.
+  - Pull requests from the staging branch skip the preview deploy and the demo.
+- **Shared Postgres:** `preview db setup|status` creates one Postgres per Dokploy server. With
+  `"database": "shared"`, staging gets its own role and database on it, passed as `DATABASE_URL`
+  and `PG*` variables.
+
 ## v1.1.0 — 2026-10-05
 
 - `preview.yml` input `comment`: `sticky` (default, unchanged behavior) or `new`, which posts a

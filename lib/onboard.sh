@@ -34,6 +34,11 @@ if ! api project.all | jq -e --arg p "$project" '.[] | select(.name == $p) | .en
   api environment.create "$(jq -nc --arg id "$project_id" '{projectId: $id, name: "previews", description: "Per-PR preview environments"}')" >/dev/null
   echo "✓ Created environment previews"
 fi
+if jq -e '.staging' "$config" >/dev/null &&
+  ! api project.all | jq -e --arg p "$project" '.[] | select(.name == $p) | .environments[] | select(.name == "staging")' >/dev/null; then
+  api environment.create "$(jq -nc --arg id "$project_id" '{projectId: $id, name: "staging", description: "Staging: the staging branch, always deployed"}')" >/dev/null
+  echo "✓ Created environment staging"
+fi
 echo "• Dokploy project $project ready"
 
 # 2. Read-only deploy key so Dokploy can clone the repo.
@@ -63,3 +68,12 @@ Done. Remaining repo changes (see the preview-kit README):
   - the "preview" job printed by 'preview init', after your test job
 Previews will live at https://<branch>.${project}.${domain}
 EOF
+if jq -e '.staging' "$config" >/dev/null; then
+  cat <<EOF
+Staging will live at https://$(jq -r --arg d "${project}.${domain}" '.staging.host // $d' "$config") (branch $(jq -r '.staging.branch // "dev"' "$config")).
+  - add the "staging" job from the preview-kit README to a workflow that runs on push
+EOF
+  if [[ $(jq -r '.staging.database // ""' "$config") == shared ]]; then
+    echo "  - the server needs a shared Postgres: 'preview db setup' (once per server)"
+  fi
+fi
