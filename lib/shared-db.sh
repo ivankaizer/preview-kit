@@ -59,15 +59,15 @@ setup() {
     read -r id app status <<<"$(find_server)"
     echo "✓ Created $db_name ($db_image)" >&2
   fi
-  if [[ $status != done ]]; then
+  if [[ $status != "done" ]]; then
     api POST postgres.deploy "$(jq -nc --arg id "$id" '{postgresId: $id}')" >/dev/null
     for _ in $(seq 1 60); do
       read -r _ _ status <<<"$(find_server)"
-      [[ $status == done ]] && break
-      [[ $status == error ]] && die "$db_name failed to start; see Dokploy → $db_project → $db_name"
+      [[ $status == "done" ]] && break
+      [[ $status == "error" ]] && die "$db_name failed to start; see Dokploy → $db_project → $db_name"
       sleep 5
     done
-    [[ $status == done ]] || die "timed out waiting for $db_name to start"
+    [[ $status == "done" ]] || die "timed out waiting for $db_name to start"
     echo "✓ Started $db_name" >&2
   fi
   echo "• Shared Postgres ready at ${app}:5432 on dokploy-network" >&2
@@ -88,7 +88,7 @@ provision() {
   [[ $name =~ ^[a-z][a-z0-9_]{0,62}$ ]] || die "database name must match [a-z][a-z0-9_]*, got '$name'"
   [[ $password =~ ^[A-Za-z0-9]+$ ]] || die "password must be alphanumeric"
   read -r id app status <<<"$(find_server)" || true
-  [[ -n ${id:-} && $status == done ]] || die "shared Postgres is not running; run 'preview db setup'"
+  [[ -n ${id:-} && $status == "done" ]] || die "shared Postgres is not running; run 'preview db setup'"
 
   local script
   script=$(cat <<EOF
@@ -125,11 +125,11 @@ EOF
     sleep 2
     read -r deployment result <<<"$(api GET "deployment.allByType?id=$schedule_id&type=schedule" |
       jq -r 'sort_by(.createdAt) | last | if . then "\(.deploymentId) \(.status)" else "" end')" || true
-    [[ $result == done || $result == error ]] && break
+    [[ $result == "done" || $result == "error" ]] && break
   done
   [[ -n $deployment ]] || die "provisioning job for ${name} never started"
   logs=$(api GET "deployment.readLogs?deploymentId=$deployment&tail=50" 2>/dev/null || true)
-  if [[ $result != done ]] || ! grep -q "PROVISIONED ${name}" <<<"$logs"; then
+  if [[ $result != "done" ]] || ! grep -q "PROVISIONED ${name}" <<<"$logs"; then
     die "provisioning ${name} failed (${result:-timeout}): $(grep -o 'PROVISION FAILED[^"]*\|ERROR:[^"]*' <<<"$logs" | head -n3)"
   fi
   echo "✓ Database ${name} ready on ${app}" >&2
