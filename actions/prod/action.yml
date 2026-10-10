@@ -1,0 +1,39 @@
+name: Deploy production
+description: Build and push the production images for a tag, then deploy them (`preview prod build|deploy`).
+inputs:
+  tag:
+    description: Image tag to build and deploy, usually the release tag
+    required: true
+  dokploy-url:
+    description: Dokploy base URL; defaults to "dokploy" in the config
+    default: ''
+  dokploy-api-key:
+    required: true
+  config:
+    default: .preview/config.json
+outputs:
+  urls:
+    description: Production URLs, space-separated
+    value: ${{ steps.deploy.outputs.urls }}
+runs:
+  using: composite
+  steps:
+    - name: Build and push images
+      shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.dokploy-url }}
+        DOKPLOY_API_KEY: ${{ inputs.dokploy-api-key }}
+        PREVIEW_CONFIG: ${{ inputs.config }}
+        TAG: ${{ inputs.tag }}
+      run: '"$GITHUB_ACTION_PATH/../../bin/preview" prod build "$TAG"'
+    - id: deploy
+      shell: bash
+      env:
+        DOKPLOY_URL: ${{ inputs.dokploy-url }}
+        DOKPLOY_API_KEY: ${{ inputs.dokploy-api-key }}
+        PREVIEW_CONFIG: ${{ inputs.config }}
+        TAG: ${{ inputs.tag }}
+      # Assign first: inside echo's argument a failing deploy would be masked by echo's exit status.
+      run: |
+        urls=$("$GITHUB_ACTION_PATH/../../bin/preview" prod deploy "$TAG")
+        echo "urls=$(tr '\n' ' ' <<<"$urls")" >> "$GITHUB_OUTPUT"

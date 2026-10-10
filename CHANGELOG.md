@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.0 — 2026-10-10
+
+- **Production:** a `production` section in `.preview/config.json` and the reusable workflow
+  `release.yml` (action `actions/prod`) deploy version tags. CI builds the images on a runner on
+  the Dokploy host and pushes them to a local registry; Dokploy runs the compose file without its
+  `build:` sections, pinned by `IMAGE_TAG`. Optional dedicated Postgres and generated secrets.
+- `preview prod build|deploy <tag>` and `preview prod url`.
+
 ## v1.4.0 — 2026-10-10
 
 - `runner` input on `preview.yml`, `staging.yml` and `cleanup.yml`: run the job on a self-hosted

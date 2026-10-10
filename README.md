@@ -244,6 +244,53 @@ networks:
 - Back up the shared server from its Dokploy page (Backups), since it holds every project's
   staging data.
 
+## Production
+
+A `production` section deploys version tags to the project's `production` environment. Images are
+built once, by CI on a self-hosted runner that shares the Dokploy host's Docker, and pushed to a
+registry on that host (e.g. `registry:2` bound to `localhost:5000`). Dokploy then runs the compose
+file without its `build:` sections, so production runs exactly the images that were built.
+
+```json
+"production": {
+  "compose": "docker-compose.prod.yml",
+  "database": "dedicated",
+  "generate": { "SESSION_SECRET": "hex:32" },
+  "env": "LOG_LEVEL=info",
+  "domains": [
+    { "host": "dash.example.com", "service": "web", "port": 8080, "path": "/" },
+    { "host": "api.example.com", "service": "api", "port": 3000, "path": "/" }
+  ],
+  "healthcheck": ["https://dash.example.com/", "https://api.example.com/health"]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `compose` | Default `docker-compose.prod.yml`. Name images `localhost:5000/<project>/<service>:${IMAGE_TAG:?}`; give `build:` only to the service that builds each image, and use plain `${VAR}` for runtime settings, since CI builds without them |
+| `database` | `dedicated`: its own Postgres (`<project>-postgres`) in the production environment, passed as `DATABASE_URL` |
+| `generate` | Secrets created once when the stack is created: `base64:<bytes>` or `hex:<bytes>` |
+| `env` | Extra lines for the stack's `.env` on creation. Set real secrets (SMTP, API keys) in Dokploy |
+| `domains` | Hosts, paths and the services they reach |
+| `healthcheck` | URLs that must answer 2xx–4xx after the deploy |
+
+The caller runs the reusable workflow on tags:
+
+```yaml
+on:
+  push:
+    tags: ['v*']
+jobs:
+  release:
+    uses: ivankaizer/preview-kit/.github/workflows/release.yml@v1
+    with:
+      runner: '["self-hosted","macserv"]'
+    secrets: inherit
+```
+
+The deployed tag is `IMAGE_TAG` in the stack's `.env`. To roll back, re-run the release of an older
+tag, or `preview prod deploy <old-tag>` while its images are still in the registry.
+
 ## CLI reference
 
 Run it inside a repository. `PR_NUMBER` and `BRANCH` default to the PR of the checked-out branch.
@@ -261,6 +308,8 @@ Run it inside a repository. `PR_NUMBER` and `BRANCH` default to the PR of the ch
 | `preview staging deploy` | Deploys the staging branch and prints the staging URL (CI does this on push) |
 | `preview staging url` / `destroy` | Prints the staging URL / removes the staging stack (the database is kept) |
 | `preview db setup` / `status` | Creates the server's shared Postgres (once per server) / shows it |
+| `preview prod build <tag>` | Builds the production images and pushes them (on the Dokploy host) |
+| `preview prod deploy <tag>` / `url` | Deploys `<tag>` to production / prints the production URLs |
 
 ## How it works
 

@@ -1,0 +1,49 @@
+# Reusable: build the production images for a tag on a runner that shares the Dokploy host's Docker,
+# push them to the registry on that host and deploy them. Call it from a workflow that runs on
+# `push: tags: ['v*']`. Callers need `secrets: inherit`.
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        default: .preview/config.json
+      runner:
+        description: 'Where the job runs, as JSON; must be a runner on the Dokploy host, e.g. ["self-hosted","macserv"]'
+        type: string
+        required: true
+      tag:
+        description: Image tag, default the pushed tag
+        type: string
+        default: ''
+    secrets:
+      DOKPLOY_API_KEY:
+        required: true
+
+jobs:
+  release:
+    name: Deploy production
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    # One release at a time; a newer tag waits rather than cancelling a half-finished migration.
+    concurrency:
+      group: production-${{ github.repository }}
+      cancel-in-progress: false
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: deploy
+        uses: ivankaizer/preview-kit/actions/prod@v1
+        with:
+          tag: ${{ inputs.tag || github.ref_name }}
+          dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          config: ${{ inputs.config }}
+
+      - name: Summary
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+          URLS: ${{ steps.deploy.outputs.urls }}
+        run: |
+          echo "🚀 **Production** \`$TAG\`: $URLS" >> "$GITHUB_STEP_SUMMARY"

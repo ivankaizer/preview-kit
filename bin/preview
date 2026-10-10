@@ -14,6 +14,7 @@ usage: preview <command>
   onboard          one-time setup for this repo: Dokploy project, deploy key, CI secret
   deploy           deploy this branch's PR and print the preview URL
   staging deploy   deploy the staging branch to https://<project>.<domain> (also: url, destroy)
+  prod build|deploy <tag>   build and push the production images / deploy them (also: prod url)
   db setup         create the server's shared Postgres, used by staging stacks (also: status)
   demo             record the tour on the preview and compare with the previous commit
   url              print this branch's preview URL
@@ -112,6 +113,10 @@ case $cmd in
     SHA="${SHA:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}}"
     export REPO SHA
     exec "$kit/lib/staging.sh" "${1:-deploy}"
+    ;;
+  prod)
+    require_config; load_env
+    exec "$kit/lib/prod.sh" "$@"
     ;;
   db)
     load_env
