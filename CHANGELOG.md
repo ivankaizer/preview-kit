@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 — 2026-10-10
+
+- `"tls": "edge"` in `.preview/config.json`: for a Dokploy server behind a TLS-terminating
+  reverse proxy. Preview and staging domains are created with `https: false`, so Traefik serves
+  plain HTTP and doesn't redirect the proxy's requests. The default (`letsencrypt`) is unchanged.
+
 ## v1.2.1 — 2026-10-08
 
 - **Fix:** the `deploy` and `staging` actions reported success when the deploy failed. The URL

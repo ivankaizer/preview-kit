@@ -113,6 +113,7 @@ closes. Push and open a PR.
 | `routes` | Paths on the preview host and the compose services they reach. The longest path wins; `"stripPath": true` removes the prefix before forwarding |
 | `healthcheck` | Paths that must answer 2xx–4xx before a deploy counts as successful |
 | `env` | Lines written to the stack's `.env`, for compose variable interpolation |
+| `tls` | `letsencrypt` (default): Dokploy's Traefik issues the certificates. `edge`: a reverse proxy in front of the Dokploy server terminates TLS and forwards plain HTTP, so domains are created without HTTPS |
 
 ### `docker-compose.preview.yml`
 

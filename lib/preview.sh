@@ -99,8 +99,10 @@ create_compose() {
 
   jq -c '.routes[]' "$config" | while read -r route; do
     api POST domain.create "$(jq -nc --arg id "$id" --arg h "$host" --argjson r "$route" \
+      --arg tls "$(jq -r '.tls // "letsencrypt"' "$config")" \
       '{composeId: $id, host: $h, serviceName: $r.service, port: $r.port, path: ($r.path // "/"),
-        stripPath: ($r.stripPath // false), https: true, certificateType: "letsencrypt",
+        stripPath: ($r.stripPath // false), https: ($tls != "edge"),
+        certificateType: (if $tls == "edge" then "none" else "letsencrypt" end),
         domainType: "compose"}')" >/dev/null
   done
   echo "$id"
