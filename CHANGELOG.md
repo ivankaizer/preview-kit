@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.0 — 2026-10-10
+
+- `runner` input on `preview.yml`, `staging.yml` and `cleanup.yml`: run the job on a self-hosted
+  runner, e.g. `runner: '["self-hosted","macserv"]'`. Default `"ubuntu-latest"`, unchanged.
+- The demo action installs ffmpeg and Chromium's system libraries only where `apt-get` exists;
+  elsewhere it expects them to be present.
+
 ## v1.3.0 — 2026-10-10
 
 - `"tls": "edge"` in `.preview/config.json`: for a Dokploy server behind a TLS-terminating

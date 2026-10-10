@@ -85,6 +85,7 @@ Optional inputs, under `with:` in that job:
 | `demo` | `true` | Record a demo when the tour file exists |
 | `comment` | `sticky` | `sticky` edits one PR comment on every push; `new` posts a fresh comment per push, so earlier demos stay in the thread (their files stay on the demos branch until the PR closes) |
 | `hide-previous` | `false` | With `comment: new`, collapse earlier preview comments as outdated |
+| `runner` | `"ubuntu-latest"` | Where the job runs, as JSON, e.g. `'["self-hosted","macserv"]'`. Also accepted by `staging.yml` and `cleanup.yml`. A self-hosted runner needs `jq`, `curl`, `gh`, Node and, for demos on non-apt distros, `ffmpeg` and Chromium's libraries. Never attach a self-hosted runner to a public repository |
 
 `init` also creates `.github/workflows/preview-cleanup.yml`, which removes the preview when the PR
 closes. Push and open a PR.

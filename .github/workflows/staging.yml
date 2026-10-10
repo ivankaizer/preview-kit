@@ -5,6 +5,10 @@ name: Staging
 on:
   workflow_call:
     inputs:
+      runner:
+        description: 'Where the job runs, as JSON: "ubuntu-latest" (default) or a self-hosted label list such as ["self-hosted","macserv"]'
+        type: string
+        default: '"ubuntu-latest"'
       config:
         type: string
         default: .preview/config.json
@@ -19,7 +23,7 @@ on:
 jobs:
   staging:
     name: Deploy staging
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner) }}
     # One deploy at a time; a newer push waits rather than cancelling a half-finished migration.
     concurrency:
       group: staging-${{ github.repository }}

@@ -21,9 +21,17 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}/../../lib/demo
       run: |
-        command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null; }
+        # GitHub-hosted (apt) runners get ffmpeg and Chromium's libraries installed here; self-hosted
+        # runners on other distros must provide them (see the README).
+        if command -v apt-get >/dev/null; then
+          command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null; }
+          deps=--with-deps
+        else
+          command -v ffmpeg >/dev/null || { echo "::error::ffmpeg is not installed on this runner"; exit 1; }
+          deps=
+        fi
         npm ci --no-audit --no-fund
-        npx playwright install --with-deps chromium >/dev/null
+        npx playwright install $deps chromium >/dev/null
     - id: run
       shell: bash
       env:

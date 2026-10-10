@@ -5,6 +5,10 @@ name: Preview
 on:
   workflow_call:
     inputs:
+      runner:
+        description: 'Where the job runs, as JSON: "ubuntu-latest" (default) or a self-hosted label list such as ["self-hosted","macserv"]'
+        type: string
+        default: '"ubuntu-latest"'
       config:
         type: string
         default: .preview/config.json
@@ -30,7 +34,7 @@ on:
 jobs:
   preview:
     name: Deploy preview
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner) }}
     concurrency:
       group: preview-${{ github.repository }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
