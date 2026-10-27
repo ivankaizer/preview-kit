@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.0 — 2026-10-27
+
+- **Production:** `build: false` on `release.yml` (and `actions/prod`) deploys images the caller
+  already pushed to a registry the Dokploy host can pull from, such as GHCR. The job then needs no
+  runner on the Dokploy host: `runner: '"ubuntu-latest"'` works. Building stays the default.
+
 ## v1.5.0 — 2026-10-10
 
 - **Production:** a `production` section in `.preview/config.json` and the reusable workflow
