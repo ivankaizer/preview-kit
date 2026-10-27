@@ -4,6 +4,9 @@ inputs:
   tag:
     description: Image tag to build and deploy, usually the release tag
     required: true
+  build:
+    description: '"false" deploys images another workflow already pushed to a registry the Dokploy host can pull from'
+    default: 'true'
   dokploy-url:
     description: Dokploy base URL; defaults to "dokploy" in the config
     default: ''
@@ -19,6 +22,7 @@ runs:
   using: composite
   steps:
     - name: Build and push images
+      if: inputs.build == 'true'
       shell: bash
       env:
         DOKPLOY_URL: ${{ inputs.dokploy-url }}

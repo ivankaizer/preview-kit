@@ -267,7 +267,7 @@ file without its `build:` sections, so production runs exactly the images that w
 
 | Key | Meaning |
 |---|---|
-| `compose` | Default `docker-compose.prod.yml`. Name images `localhost:5000/<project>/<service>:${IMAGE_TAG:?}`; give `build:` only to the service that builds each image, and use plain `${VAR}` for runtime settings, since CI builds without them |
+| `compose` | Default `docker-compose.prod.yml`. Name images `localhost:5000/<project>/<service>:${IMAGE_TAG:?}` (or from another registry, see below); give `build:` only to the service that builds each image, and use plain `${VAR}` for runtime settings, since CI builds without them |
 | `database` | `dedicated`: its own Postgres (`<project>-postgres`) in the production environment, passed as `DATABASE_URL` |
 | `generate` | Secrets created once when the stack is created: `base64:<bytes>` or `hex:<bytes>` |
 | `env` | Extra lines for the stack's `.env` on creation. Set real secrets (SMTP, API keys) in Dokploy |
@@ -290,6 +290,26 @@ jobs:
 
 The deployed tag is `IMAGE_TAG` in the stack's `.env`. To roll back, re-run the release of an older
 tag, or `preview prod deploy <old-tag>` while its images are still in the registry.
+
+### Images from another registry
+
+When the caller already publishes its images (say to GHCR, from a GitHub-hosted runner), name them
+in the compose file, e.g. `image: ghcr.io/acme/shop-api:${IMAGE_TAG:?}`, and deploy without building.
+The Dokploy host must be able to pull them: public images, or a registry login on the host.
+
+```yaml
+jobs:
+  images:
+    # ... builds and pushes ghcr.io/acme/shop-api:sha-${{ github.sha }}
+  production:
+    needs: images
+    uses: ivankaizer/preview-kit/.github/workflows/release.yml@v1
+    with:
+      runner: '"ubuntu-latest"'
+      build: false
+      tag: sha-${{ github.sha }}
+    secrets: inherit
+```
 
 ## CLI reference
 

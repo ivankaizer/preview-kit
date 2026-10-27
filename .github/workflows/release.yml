@@ -1,6 +1,8 @@
 # Reusable: build the production images for a tag on a runner that shares the Dokploy host's Docker,
 # push them to the registry on that host and deploy them. Call it from a workflow that runs on
 # `push: tags: ['v*']`. Callers need `secrets: inherit`.
+# With `build: false` it only deploys: the images for the tag are already in a registry the Dokploy
+# host can pull from (e.g. GHCR, pushed by the caller), so any runner will do.
 name: Release
 
 on:
@@ -10,9 +12,13 @@ on:
         type: string
         default: .preview/config.json
       runner:
-        description: 'Where the job runs, as JSON; must be a runner on the Dokploy host, e.g. ["self-hosted","macserv"]'
+        description: 'Where the job runs, as JSON: a runner on the Dokploy host, e.g. ["self-hosted","macserv"]; with build false, any runner, e.g. "ubuntu-latest"'
         type: string
         required: true
+      build:
+        description: Build and push the images first; false deploys images that are already in the registry
+        type: boolean
+        default: true
       tag:
         description: Image tag, default the pushed tag
         type: string
@@ -38,6 +44,7 @@ jobs:
         uses: ivankaizer/preview-kit/actions/prod@v1
         with:
           tag: ${{ inputs.tag || github.ref_name }}
+          build: ${{ inputs.build }}
           dokploy-api-key: ${{ secrets.DOKPLOY_API_KEY }}
           config: ${{ inputs.config }}
 
